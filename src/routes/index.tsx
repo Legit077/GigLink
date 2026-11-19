@@ -1,154 +1,125 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { CalendarCheck, Guitar, Search, Star } from "lucide-react";
-
-import heroImage from "@/assets/hero-stage.jpg";
-import { ArtistCard, type ArtistSummary } from "@/components/artist-card";
+import { CalendarCheck, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { GENRES } from "@/lib/genres";
+import { formatNpr } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GigLink — Book Live Music for Your Venue" },
+      { title: "GigLink — Book live bands across Nepal" },
       {
         name: "description",
         content:
-          "Find bands and solo artists by genre, send booking requests, and manage every gig — GigLink connects musicians with restaurants and event organizers.",
+          "GigLink connects venues and organizers in Kathmandu, Pokhara, Chitwan, Biratnagar and other major Nepali cities with bands and solo artists, with real-time availability and automatic booking conflict detection.",
       },
-      { property: "og:title", content: "GigLink — Book Live Music for Your Venue" },
+      { property: "og:title", content: "GigLink — Book live bands across Nepal" },
       {
         property: "og:description",
-        content: "Discover artists by genre, send booking requests and manage gigs in one place.",
+        content:
+          "Find musicians, check live availability and confirm gigs without double bookings.",
       },
     ],
   }),
-  component: Index,
+  component: Home,
 });
 
-function Index() {
-  const { data: artists } = useQuery({
+function Home() {
+  const { data: artists = [] } = useQuery({
     queryKey: ["featured-artists"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("artists")
-        .select("id, stage_name, kind, genres, city, bio, image_url, hourly_rate, members")
+        .select("id, name, artist_type, genres, hourly_rate, location")
         .eq("is_published", true)
-        .order("created_at", { ascending: false })
-        .limit(6);
-      if (error) throw error;
-      return data as ArtistSummary[];
+        .eq("is_suspended", false)
+        .limit(3);
+      return data ?? [];
     },
   });
 
   return (
     <div>
-      <section className="relative isolate overflow-hidden">
-        <img
-          src={heroImage}
-          alt="Band performing under amber and magenta stage lights"
-          width={1920}
-          height={1080}
-          className="absolute inset-0 -z-10 size-full object-cover"
-        />
-        <div
-          className="absolute inset-0 -z-10"
-          style={{ backgroundImage: "var(--gradient-veil)" }}
-          aria-hidden
-        />
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-28 md:py-40">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary">
-            Live music, booked properly
-          </p>
-          <h1 className="max-w-3xl text-5xl leading-[0.95] md:text-7xl">
-            Where <span className="text-gradient">bands</span> meet the rooms that need them
+      <section className="border-b border-border bg-surface-2/40">
+        <div className="mx-auto max-w-5xl px-4 py-20 text-center">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">Live music across Nepal</p>
+          <h1 className="mt-4 font-display text-5xl font-semibold leading-tight">
+            Live music, booked without the double bookings
           </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            GigLink lets bands and solo artists showcase their sound, and lets restaurants and event
-            organizers search by genre, check capacity and send a booking request in minutes.
+          <p className="mx-auto mt-5 max-w-2xl text-muted-foreground">
+            GigLink connects restaurants, bars and event organizers across Nepal with bands and solo
+            artists — with real availability, venue capacity checks and conflict detection built in.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg" className="bg-stage text-primary-foreground hover:opacity-90">
-              <Link to="/artists">Browse artists</Link>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Button asChild size="lg">
+              <Link to="/artists">Find an artist</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/auth">Create an account</Link>
+              <Link to="/gigs">Browse open gigs</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-6xl px-4 py-16">
-        <h2 className="text-3xl md:text-4xl">How it works</h2>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {[
-            {
-              icon: Guitar,
-              title: "Artists build a profile",
-              text: "Sign up as a band or a solo artist, list your genres and link your Spotify or YouTube showcase.",
-            },
-            {
-              icon: Search,
-              title: "Organizers search by genre",
-              text: "Restaurants and event organizers filter by genre and city, then set venue capacity and expected guests.",
-            },
-            {
-              icon: CalendarCheck,
-              title: "Book, confirm, play",
-              text: "Send a booking request with date and budget. The artist accepts or declines — everyone stays in sync.",
-            },
-          ].map((s) => (
-            <div key={s.title} className="rounded-xl p-6 card-surface">
-              <s.icon className="size-8 text-primary" />
-              <h3 className="mt-4 text-2xl">{s.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{s.text}</p>
-            </div>
-          ))}
+      <section className="mx-auto max-w-5xl px-4 py-16">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Feature
+            icon={<CalendarCheck className="size-5 text-primary" />}
+            title="Conflict detection"
+            body="Every request is checked against the artist's confirmed schedule before it is sent — and enforced again in the database."
+          />
+          <Feature
+            icon={<Users className="size-5 text-primary" />}
+            title="Capacity validation"
+            body="Expected guests are compared against the venue's verified capacity so you know before the night arrives."
+          />
+          <Feature
+            icon={<ShieldCheck className="size-5 text-primary" />}
+            title="Clear roles"
+            body="Artists manage availability, organizers manage gigs, and every action is permission-checked server-side."
+          />
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-6xl px-4 pb-16">
-        <div className="flex items-end justify-between gap-4">
-          <h2 className="text-3xl md:text-4xl">Fresh on the roster</h2>
-          <Link to="/artists" className="text-sm text-primary hover:underline">
-            See all artists
-          </Link>
-        </div>
-        {artists && artists.length > 0 ? (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {artists.length > 0 && (
+        <section className="mx-auto max-w-5xl px-4 pb-20">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl font-semibold">Featured artists</h2>
+            <Link to="/artists" className="text-sm text-primary hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             {artists.map((a) => (
-              <ArtistCard key={a.id} artist={a} />
+              <Link
+                key={a.id}
+                to="/artists/$artistId"
+                params={{ artistId: a.id }}
+                className="surface-card p-5 transition-colors hover:border-primary/50"
+              >
+                <p className="font-display text-lg font-semibold">{a.name}</p>
+                <p className="mt-1 text-sm capitalize text-muted-foreground">
+                  {a.artist_type} · {a.genres.slice(0, 2).join(", ")}
+                </p>
+                <p className="mt-4 text-sm text-primary">{formatNpr(a.hourly_rate)}</p>
+              </Link>
             ))}
           </div>
-        ) : (
-          <div className="mt-8 rounded-xl p-10 text-center card-surface">
-            <Star className="mx-auto size-8 text-primary" />
-            <p className="mt-3 text-muted-foreground">
-              No artists yet — be the first to put your act on GigLink.
-            </p>
-            <Button asChild className="mt-4 bg-stage text-primary-foreground hover:opacity-90">
-              <Link to="/auth">Join as an artist</Link>
-            </Button>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
+    </div>
+  );
+}
 
-      <section className="mx-auto w-full max-w-6xl px-4 pb-24">
-        <h2 className="text-3xl md:text-4xl">Browse by genre</h2>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {GENRES.map((g) => (
-            <Link
-              key={g}
-              to="/artists"
-              search={{ genre: g, q: "" }}
-              className="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-            >
-              {g}
-            </Link>
-          ))}
-        </div>
-      </section>
+function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="surface-card p-6">
+      <div className="flex size-10 items-center justify-center rounded-md border border-primary/30 bg-primary/10">
+        {icon}
+      </div>
+      <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>
+      <p className="mt-2 text-sm text-muted-foreground">{body}</p>
     </div>
   );
 }

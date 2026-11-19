@@ -1,208 +1,204 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Building2, Mic2, Users2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign In or Join GigLink" },
+      { title: "Sign in — GigLink" },
       {
         name: "description",
-        content:
-          "Create a GigLink account as a band, a solo artist, or an event organizer / restaurant and start booking live music.",
+        content: "Sign in or create a GigLink account as an artist or an event organizer.",
       },
-      { property: "og:title", content: "Sign In or Join GigLink" },
+      { property: "og:title", content: "Sign in — GigLink" },
       {
         property: "og:description",
-        content: "Join as a band, solo artist, or event organizer and start booking live music.",
+        content: "Access your GigLink artist or organizer dashboard.",
       },
     ],
   }),
   component: AuthPage,
 });
 
-type AccountKind = "band" | "solo" | "organizer";
-
-const accountOptions: { value: AccountKind; label: string; hint: string; icon: typeof Mic2 }[] = [
-  { value: "band", label: "Band", hint: "A group performing together", icon: Users2 },
-  { value: "solo", label: "Solo artist", hint: "You perform on your own", icon: Mic2 },
-  {
-    value: "organizer",
-    label: "Restaurant / Event organizer",
-    hint: "You host events and book artists",
-    icon: Building2,
-  },
-];
-
 function AuthPage() {
   const navigate = useNavigate();
-  const { session } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user, role, loading } = useAuth();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [signupRole, setSignupRole] = useState<"artist" | "organizer">("artist");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [kind, setKind] = useState<AccountKind>("band");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session) navigate({ to: "/dashboard", replace: true });
-  }, [session, navigate]);
+    if (!loading && user) {
+      void navigate({
+        to: role === "admin" ? "/admin" : role === "organizer" ? "/organizer" : "/dashboard",
+      });
+    }
+  }, [loading, user, role, navigate]);
 
-  async function signIn(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    navigate({ to: "/dashboard" });
-  }
-
-  async function signUp(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          full_name: fullName,
-          role: kind === "organizer" ? "organizer" : "artist",
-          artist_kind: kind === "organizer" ? null : kind,
-        },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    if (data.session) {
-      toast.success("Welcome to GigLink!");
-      navigate({ to: "/dashboard" });
-    } else {
-      toast.success("Check your email to confirm your account.");
+    setError(null);
+    if (!email.trim() || password.length < 8) {
+      setError("Enter a valid email and a password of at least 8 characters.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (mode === "signup") {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
+            data: { full_name: fullName.trim(), role: signupRole },
+          },
+        });
+        if (signUpError) throw signUpError;
+        if (signUpData.session) {
+          toast.success("Account created. You are signed in.");
+        } else {
+          toast.success(
+            "Account created. Check your email and click the confirmation link to sign in.",
+          );
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) throw signInError;
+        toast.success("Welcome back.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Authentication failed.";
+      setError(message.includes("Invalid login") ? "Incorrect email or password." : message);
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function googleSignIn() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+  async function handleForgotPassword() {
+    setError(null);
+    if (!email.trim()) {
+      setError("Enter your email above first, then click “Forgot password?”.");
+      return;
+    }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (result.error) return toast.error("Google sign-in failed");
-    if (result.redirected) return;
-    navigate({ to: "/dashboard" });
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    toast.success("If that email has an account, a password reset link is on its way.");
   }
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-16">
-      <h1 className="text-4xl">Welcome to GigLink</h1>
-      <p className="mt-2 text-muted-foreground">Book live music, or get booked.</p>
+    <div className="mx-auto flex max-w-md flex-col px-4 py-14">
+      <h1 className="font-display text-3xl font-semibold">
+        {mode === "signin" ? "Sign in to GigLink" : "Create your GigLink account"}
+      </h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Artists find gigs. Organizers book them. One account for both sides of the stage.
+      </p>
 
-      <Tabs defaultValue="signup" className="mt-8">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="signup">Create account</TabsTrigger>
-          <TabsTrigger value="signin">Sign in</TabsTrigger>
-        </TabsList>
+      <div className="mt-6 grid grid-cols-2 gap-1 rounded-lg border border-border bg-surface-2 p-1">
+        {(["signin", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn(
+              "rounded-md py-2 text-sm font-medium transition-colors",
+              mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+            )}
+          >
+            {m === "signin" ? "Sign in" : "Sign up"}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="signup">
-          <form onSubmit={signUp} className="mt-6 space-y-4 rounded-xl p-6 card-surface">
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        {mode === "signup" && (
+          <>
             <div className="space-y-2">
-              <Label>I am a…</Label>
-              <div className="grid gap-2">
-                {accountOptions.map((o) => (
+              <Label htmlFor="name">Full name</Label>
+              <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>I am joining as</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["artist", "organizer"] as const).map((r) => (
                   <button
-                    key={o.value}
+                    key={r}
                     type="button"
-                    onClick={() => setKind(o.value)}
-                    className={
-                      "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors " +
-                      (kind === o.value
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/60")
-                    }
+                    onClick={() => setSignupRole(r)}
+                    className={cn(
+                      "rounded-md border px-3 py-2 text-sm capitalize transition-colors",
+                      signupRole === r
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-surface-2 text-muted-foreground",
+                    )}
                   >
-                    <o.icon className={"size-5 " + (kind === o.value ? "text-primary" : "text-muted-foreground")} />
-                    <span>
-                      <span className="block text-sm font-semibold">{o.label}</span>
-                      <span className="block text-xs text-muted-foreground">{o.hint}</span>
-                    </span>
+                    {r}
                   </button>
                 ))}
               </div>
             </div>
-            <div>
-              <Label htmlFor="name">
-                {kind === "organizer" ? "Business / your name" : "Band or artist name"}
-              </Label>
-              <Input id="name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-stage text-primary-foreground hover:opacity-90"
-            >
-              Create account
-            </Button>
-            <GoogleButton onClick={googleSignIn} />
-          </form>
-        </TabsContent>
+          </>
+        )}
 
-        <TabsContent value="signin">
-          <form onSubmit={signIn} className="mt-6 space-y-4 rounded-xl p-6 card-surface">
-            <div>
-              <Label htmlFor="email2">Email</Label>
-              <Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="password2">Password</Label>
-              <Input
-                id="password2"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-stage text-primary-foreground hover:opacity-90"
-            >
-              Sign in
-            </Button>
-            <GoogleButton onClick={googleSignIn} />
-          </form>
-        </TabsContent>
-      </Tabs>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        {mode === "signin" && (
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-sm text-primary underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </button>
+        )}
+
+        {error && (
+          <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
+
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+        </Button>
+      </form>
     </div>
-  );
-}
-
-function GoogleButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button type="button" variant="outline" className="w-full" onClick={onClick}>
-      Continue with Google
-    </Button>
   );
 }

@@ -7,14 +7,19 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "../lib/auth";
-import { SiteHeader } from "../components/site-header";
-import { SiteFooter } from "../components/site-footer";
-import { Toaster } from "../components/ui/sonner";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/hooks/useTheme";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { Toaster } from "@/components/ui/sonner";
+
+// Runs before hydration so the page never flashes the wrong theme: reads the
+// stored preference (falling back to the OS setting) and sets the "dark"
+// class on <html> immediately, mirroring ThemeProvider's own logic.
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("giglink-theme");var t=s==="light"||s==="dark"?s:(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.classList.toggle("dark",t==="dark");}catch(e){}})();`;
 
 function NotFoundComponent() {
   return (
@@ -41,9 +46,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -80,33 +82,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "GigLink — Book Bands, Solo Artists & Venues" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+      { title: "GigLink — Band & Event Booking across Nepal" },
       {
         name: "description",
         content:
-          "GigLink connects bands and solo artists with restaurants and event organizers for live music bookings.",
-      },
-      { name: "author", content: "GigLink" },
-      { property: "og:title", content: "GigLink — Book Bands, Solo Artists & Venues" },
-      {
-        property: "og:description",
-        content: "Discover artists by genre, send booking requests and manage gigs in one place.",
+          "GigLink connects bands and solo musicians with restaurants, venues and event organizers in every major city in Nepal.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "GigLink" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@GigLink" },
+      {
+        name: "theme-color",
+        content: "#FAF9F6",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        name: "theme-color",
+        content: "#14121A",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -119,9 +125,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -136,17 +143,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <div className="flex min-h-screen flex-col">
-          <SiteHeader />
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <main className="flex-1">
-            <Outlet />
-          </main>
-          <SiteFooter />
-        </div>
-        <Toaster />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <div className="flex min-h-screen flex-col bg-background">
+            <SiteHeader />
+            <main className="flex-1">
+              {/* Required: nested routes render here. */}
+              <Outlet />
+            </main>
+            <SiteFooter />
+          </div>
+          <Toaster position="top-center" />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -1,137 +1,252 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-
-import { ArtistCard, type ArtistSummary } from "@/components/artist-card";
+import { useMemo, useState } from "react";
+import { MapPin, Search, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CityFilter } from "@/components/CityFilter";
 import { supabase } from "@/integrations/supabase/client";
-import { GENRES } from "@/lib/genres";
-
-type ArtistSearch = { q: string; genre: string };
+import { formatNpr } from "@/lib/format";
+import { ALL_CITIES } from "@/lib/cities";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/artists/")({
-  validateSearch: (search: Record<string, unknown>): ArtistSearch => ({
-    q: typeof search.q === "string" ? search.q : "",
-    genre: typeof search.genre === "string" ? search.genre : "",
-  }),
   head: () => ({
     meta: [
-      { title: "Browse Artists by Genre | GigLink" },
+      { title: "Artist directory — GigLink" },
       {
         name: "description",
         content:
-          "Search bands and solo artists on GigLink by genre, city or name and send a booking request for your venue or event.",
+          "Browse bands and solo musicians available for hire in Kathmandu, Pokhara, Chitwan, Biratnagar and other major cities in Nepal, with genres, rates and live availability.",
       },
-      { property: "og:title", content: "Browse Artists by Genre | GigLink" },
+      { property: "og:title", content: "Artist directory — GigLink" },
       {
         property: "og:description",
-        content: "Search bands and solo artists by genre and city, then book them for your event.",
+        content: "Find bands and solo musicians for your venue or event anywhere in Nepal.",
       },
     ],
   }),
   component: ArtistsPage,
-  errorComponent: ({ error }) => (
-    <p role="alert" className="mx-auto max-w-6xl px-4 py-20 text-destructive">
-      {error.message}
-    </p>
-  ),
 });
 
-function ArtistsPage() {
-  const { q, genre } = Route.useSearch();
-  const navigate = useNavigate({ from: "/artists" });
+type Artist = {
+  id: string;
+  name: string;
+  artist_type: string;
+  genres: string[];
+  bio: string | null;
+  location: string;
+  city: string;
+  hourly_rate: number | null;
+  members_count: number | null;
+};
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["artists", q, genre],
+function ArtistsPage() {
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState<"all" | "band" | "solo">("all");
+  const [city, setCity] = useState<string>(ALL_CITIES);
+  const [selected, setSelected] = useState<Artist | null>(null);
+
+  const { data: artists = [], isLoading } = useQuery({
+    queryKey: ["artists-directory"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("artists")
-        .select("id, stage_name, kind, genres, city, bio, image_url, hourly_rate, members")
+        .select("id, name, artist_type, genres, bio, location, city, hourly_rate, members_count")
         .eq("is_published", true)
-        .order("created_at", { ascending: false });
-      if (q) query = query.or(`stage_name.ilike.%${q}%,city.ilike.%${q}%`);
-      if (genre) query = query.contains("genres", [genre]);
-      const { data, error } = await query;
+        .eq("is_suspended", false)
+        .order("name");
       if (error) throw error;
-      return data as ArtistSummary[];
+      return (data ?? []) as Artist[];
     },
   });
 
+  const cities = useMemo(
+    () => Array.from(new Set(artists.map((a) => a.city).filter(Boolean))).sort(),
+    [artists],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return artists.filter((a) => {
+      if (type !== "all" && a.artist_type !== type) return false;
+      if (city !== ALL_CITIES && a.city !== city) return false;
+      if (!q) return true;
+      return (
+        a.name.toLowerCase().includes(q) ||
+        a.location.toLowerCase().includes(q) ||
+        a.city.toLowerCase().includes(q) ||
+        a.genres.some((g) => g.toLowerCase().includes(q))
+      );
+    });
+  }, [artists, search, type, city]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setType("all");
+    setCity(ALL_CITIES);
+  };
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-12">
-      <h1 className="text-4xl md:text-5xl">Find your act</h1>
-      <p className="mt-2 text-muted-foreground">
-        Filter bands and solo artists by genre, city or name.
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="font-display text-3xl font-semibold">Artist directory</h1>
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+        Bands and solo musicians performing across Nepal — from Kathmandu and Pokhara to Chitwan,
+        Butwal, Biratnagar and beyond.
       </p>
 
-      <div className="relative mt-6">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={q}
-          placeholder="Search by name or city…"
-          className="pl-9"
-          onChange={(e) =>
-            navigate({ search: (prev: ArtistSearch) => ({ ...prev, q: e.target.value }), replace: true })
-          }
-        />
+      <div className="surface-card mt-6 space-y-4 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative sm:max-w-sm sm:flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, genre or city"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+              aria-label="Search artists"
+            />
+          </div>
+          <div className="flex gap-1 rounded-lg border border-border bg-surface-2 p-1">
+            {(["all", "band", "solo"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                aria-pressed={type === t}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm capitalize transition-colors",
+                  type === t
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t === "all" ? "All types" : t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <CityFilter cities={cities} value={city} onChange={setCity} />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <GenreChip active={genre === ""} onClick={() => navigate({ search: (p: ArtistSearch) => ({ ...p, genre: "" }) })}>
-          All
-        </GenreChip>
-        {GENRES.map((g) => (
-          <GenreChip
-            key={g}
-            active={genre === g}
-            onClick={() => navigate({ search: (p: ArtistSearch) => ({ ...p, genre: g === genre ? "" : g }) })}
-          >
-            {g}
-          </GenreChip>
-        ))}
-      </div>
+      <p className="mt-4 text-sm text-muted-foreground">
+        {isLoading
+          ? "Loading artists…"
+          : `${filtered.length} ${filtered.length === 1 ? "artist" : "artists"}${
+              city === ALL_CITIES ? " across Nepal" : ` in ${city}`
+            }`}
+      </p>
 
       {isLoading ? (
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-80 rounded-xl" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="surface-card h-44 animate-pulse p-5" />
           ))}
         </div>
-      ) : data && data.length > 0 ? (
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((a) => (
-            <ArtistCard key={a.id} artist={a} />
-          ))}
+      ) : filtered.length === 0 ? (
+        <div className="surface-card mt-6 p-8 text-center">
+          <p className="font-medium">No artists match your filters</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try another city, or clear the filters to see everyone.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={resetFilters}>
+            Clear filters
+          </Button>
         </div>
       ) : (
-        <p className="mt-12 text-center text-muted-foreground">No artists match that search yet.</p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setSelected(a)}
+              className="surface-card p-5 text-left transition-colors hover:border-primary/50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="font-display text-lg font-semibold">{a.name}</h2>
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs capitalize text-primary">
+                  {a.artist_type}
+                </span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{a.bio}</p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {a.genres.map((g) => (
+                  <span
+                    key={g}
+                    className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    {g}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5" /> {a.city}
+                </span>
+                <span className="text-primary">{formatNpr(a.hourly_rate)}</span>
+              </div>
+            </button>
+          ))}
+        </div>
       )}
+
+      <Dialog open={selected !== null} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-display">{selected.name}</DialogTitle>
+                <DialogDescription className="capitalize">
+                  {selected.artist_type} · {selected.genres.join(", ")}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground">{selected.bio}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Info label="City" value={selected.city} />
+                  <Info label="Based in" value={selected.location} />
+                  <Info label="Rate" value={formatNpr(selected.hourly_rate)} />
+                  {selected.members_count && (
+                    <Info
+                      label="Members"
+                      value={`${selected.members_count}`}
+                      icon={<Users className="size-3.5" />}
+                    />
+                  )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button asChild>
+                  <Link to="/artists/$artistId" params={{ artistId: selected.id }}>
+                    View profile & availability
+                  </Link>
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function GenreChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+function Info({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "rounded-full border px-4 py-1.5 text-sm transition-colors " +
-        (active
-          ? "border-primary bg-primary/15 text-primary"
-          : "border-border text-muted-foreground hover:border-primary hover:text-primary")
-      }
-    >
-      {children}
-    </button>
+    <div className="rounded-md border border-border bg-surface-2 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 inline-flex items-center gap-1.5 font-medium">
+        {icon}
+        {value}
+      </p>
+    </div>
   );
 }

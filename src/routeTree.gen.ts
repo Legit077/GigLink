@@ -10,23 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as GigsRouteImport } from './routes/gigs'
+import { Route as OrganizerRouteImport } from './routes/organizer'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as ArtistsIndexRouteImport } from './routes/artists.index'
 import { Route as ArtistsArtistIdRouteImport } from './routes/artists.$artistId'
-import { Route as GigsIndexRouteImport } from './routes/gigs.index'
-import { Route as VenuesIndexRouteImport } from './routes/venues.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -34,20 +35,30 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GigsRoute = GigsRouteImport.update({
+  id: '/gigs',
+  path: '/gigs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizerRoute = OrganizerRouteImport.update({
+  id: '/organizer',
+  path: '/organizer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VenuesRoute = VenuesRouteImport.update({
+  id: '/venues',
+  path: '/venues',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ArtistsIndexRoute = ArtistsIndexRouteImport.update({
   id: '/artists/',
@@ -59,98 +70,94 @@ const ArtistsArtistIdRoute = ArtistsArtistIdRouteImport.update({
   path: '/artists/$artistId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GigsIndexRoute = GigsIndexRouteImport.update({
-  id: '/gigs/',
-  path: '/gigs/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VenuesIndexRoute = VenuesIndexRouteImport.update({
-  id: '/venues/',
-  path: '/venues/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/admin': typeof AuthenticatedAdminRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/dashboard': typeof DashboardRoute
+  '/gigs': typeof GigsRoute
+  '/organizer': typeof OrganizerRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/venues': typeof VenuesRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/artists/': typeof ArtistsIndexRoute
-  '/gigs/': typeof GigsIndexRoute
-  '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/admin': typeof AuthenticatedAdminRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/dashboard': typeof DashboardRoute
+  '/gigs': typeof GigsRoute
+  '/organizer': typeof OrganizerRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/venues': typeof VenuesRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/artists': typeof ArtistsIndexRoute
-  '/gigs': typeof GigsIndexRoute
-  '/venues': typeof VenuesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/dashboard': typeof DashboardRoute
+  '/gigs': typeof GigsRoute
+  '/organizer': typeof OrganizerRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/venues': typeof VenuesRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/artists/': typeof ArtistsIndexRoute
-  '/gigs/': typeof GigsIndexRoute
-  '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/auth'
-    | '/sitemap.xml'
     | '/admin'
+    | '/auth'
     | '/dashboard'
+    | '/gigs'
+    | '/organizer'
+    | '/reset-password'
+    | '/venues'
     | '/artists/$artistId'
     | '/artists/'
-    | '/gigs/'
-    | '/venues/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
-    | '/sitemap.xml'
     | '/admin'
+    | '/auth'
     | '/dashboard'
+    | '/gigs'
+    | '/organizer'
+    | '/reset-password'
+    | '/venues'
     | '/artists/$artistId'
     | '/artists'
-    | '/gigs'
-    | '/venues'
   id:
     | '__root__'
     | '/'
-    | '/_authenticated'
+    | '/admin'
     | '/auth'
-    | '/sitemap.xml'
-    | '/_authenticated/admin'
-    | '/_authenticated/dashboard'
+    | '/dashboard'
+    | '/gigs'
+    | '/organizer'
+    | '/reset-password'
+    | '/venues'
     | '/artists/$artistId'
     | '/artists/'
-    | '/gigs/'
-    | '/venues/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
-  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DashboardRoute: typeof DashboardRoute
+  GigsRoute: typeof GigsRoute
+  OrganizerRoute: typeof OrganizerRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  VenuesRoute: typeof VenuesRoute
   ArtistsArtistIdRoute: typeof ArtistsArtistIdRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
-  GigsIndexRoute: typeof GigsIndexRoute
-  VenuesIndexRoute: typeof VenuesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -162,11 +169,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -176,26 +183,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
+    '/dashboard': {
+      id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gigs': {
+      id: '/gigs'
+      path: '/gigs'
+      fullPath: '/gigs'
+      preLoaderRoute: typeof GigsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organizer': {
+      id: '/organizer'
+      path: '/organizer'
+      fullPath: '/organizer'
+      preLoaderRoute: typeof OrganizerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/venues': {
+      id: '/venues'
+      path: '/venues'
+      fullPath: '/venues'
+      preLoaderRoute: typeof VenuesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/artists/': {
       id: '/artists/'
@@ -211,45 +232,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ArtistsArtistIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/gigs/': {
-      id: '/gigs/'
-      path: '/gigs'
-      fullPath: '/gigs/'
-      preLoaderRoute: typeof GigsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/venues/': {
-      id: '/venues/'
-      path: '/venues'
-      fullPath: '/venues/'
-      preLoaderRoute: typeof VenuesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
-interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-}
-
-const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-}
-
-const AuthenticatedRouteRouteWithChildren =
-  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
-  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DashboardRoute: DashboardRoute,
+  GigsRoute: GigsRoute,
+  OrganizerRoute: OrganizerRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  VenuesRoute: VenuesRoute,
   ArtistsArtistIdRoute: ArtistsArtistIdRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
-  GigsIndexRoute: GigsIndexRoute,
-  VenuesIndexRoute: VenuesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
